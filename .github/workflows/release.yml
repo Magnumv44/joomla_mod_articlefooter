@@ -27,8 +27,8 @@ permissions:
 env:
   MODULE_NAME: mod_articlefooter
   # Folder that contains mod_articlefooter.xml, services/, src/, tmpl/, language/.
-  # "." = repository root. Use e.g. "mod_articlefooter" if the module lives in a subfolder.
-  MODULE_DIR: .
+  # "." = repository root. Here the module lives in a subfolder.
+  MODULE_DIR: mod_articlefooter
 
 jobs:
   release:
@@ -64,6 +64,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$GITHUB_WORKSPACE/dist"
+          # LICENSE lives in the repository root; the package needs it next to the manifest
+          if [ ! -f "$MODULE_DIR/LICENSE" ]; then
+            cp "$GITHUB_WORKSPACE/LICENSE" "$MODULE_DIR/LICENSE"
+          fi
           cd "$MODULE_DIR"
           zip -r -X "$GITHUB_WORKSPACE/dist/$MODULE_NAME.zip" "$MODULE_NAME.xml" LICENSE services src tmpl language
           cd "$GITHUB_WORKSPACE/dist"
