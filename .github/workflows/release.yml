@@ -1,0 +1,122 @@
+# Automatic release / Автоматичний випуск
+#
+# EN: Place this file at .github/workflows/release.yml in the repository.
+#     To publish a new version: raise <version> in mod_articlefooter.xml, commit, then push a tag:
+#         git tag v1.2.2 && git push origin v1.2.2
+#     The workflow checks the tag against the manifest, validates PHP/XML, builds mod_articlefooter.zip,
+#     creates a GitHub release and attaches the zip and a ready mod_articlefooter-update.xml.
+#     Upload that update file to the site root afterwards (see README).
+#
+# UK: Покладіть цей файл у .github/workflows/release.yml у репозиторії.
+#     Для нової версії: збільште <version> у mod_articlefooter.xml, закомітьте, потім запуште тег:
+#         git tag v1.2.2 && git push origin v1.2.2
+#     Workflow звірить тег із маніфестом, перевірить PHP/XML, збере mod_articlefooter.zip,
+#     створить реліз на GitHub і додасть до нього zip та готовий mod_articlefooter-update.xml.
+#     Цей файл оновлень потім завантажте в корінь сайту (див. README).
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  MODULE_NAME: mod_articlefooter
+  # Folder that contains mod_articlefooter.xml, services/, src/, tmpl/, language/.
+  # "." = repository root. Use e.g. "mod_articlefooter" if the module lives in a subfolder.
+  MODULE_DIR: .
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+
+      - name: Check that the tag matches the manifest version
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          MANIFEST="$MODULE_DIR/$MODULE_NAME.xml"
+          MANIFEST_VERSION="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' "$MANIFEST" | head -n 1)"
+          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match <version>$MANIFEST_VERSION</version> in $MANIFEST"
+            exit 1
+          fi
+          echo "VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
+
+      - name: Validate PHP and XML
+        run: |
+          set -euo pipefail
+          find "$MODULE_DIR" \( -path '*/.git' -o -path '*/.github' \) -prune -o -name '*.php' -print0 | xargs -0 -n 1 php -l
+          python3 -c "import sys, xml.dom.minidom as m; m.parse(sys.argv[1])" "$MODULE_DIR/$MODULE_NAME.xml"
+
+      - name: Build the package
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          cd "$MODULE_DIR"
+          zip -r -X "$GITHUB_WORKSPACE/dist/$MODULE_NAME.zip" "$MODULE_NAME.xml" LICENSE services src tmpl language
+          cd "$GITHUB_WORKSPACE/dist"
+          SHA256="$(sha256sum "$MODULE_NAME.zip" | cut -d ' ' -f 1)"
+          echo "SHA256=$SHA256" >> "$GITHUB_ENV"
+
+      - name: Generate the update file
+        run: |
+          set -euo pipefail
+          cat > "$GITHUB_WORKSPACE/dist/$MODULE_NAME-update.xml" <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <updates>
+              <update>
+                  <name>Article Footer (custom HTML)</name>
+                  <description>Outputs a custom HTML block (for example, a button to the forum discussion) under articles from selected categories.</description>
+                  <element>$MODULE_NAME</element>
+                  <type>module</type>
+                  <client>site</client>
+                  <version>$VERSION</version>
+                  <infourl title="Article Footer (custom HTML)">https://github.com/$GITHUB_REPOSITORY</infourl>
+                  <downloads>
+                      <downloadurl type="full" format="zip">https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$MODULE_NAME.zip</downloadurl>
+                  </downloads>
+                  <sha256>$SHA256</sha256>
+                  <tags>
+                      <tag>stable</tag>
+                  </tags>
+                  <maintainer>Magnum</maintainer>
+                  <maintainerurl>https://www.magnumblog.space</maintainerurl>
+                  <targetplatform name="joomla" version="6.*"/>
+                  <php_minimum>8.3</php_minimum>
+              </update>
+          </updates>
+          EOF
+          python3 -c "import sys, xml.dom.minidom as m; m.parse(sys.argv[1])" "$GITHUB_WORKSPACE/dist/$MODULE_NAME-update.xml"
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/$MODULE_NAME.zip" \
+            "dist/$MODULE_NAME-update.xml" \
+            --title "$MODULE_NAME $VERSION" \
+            --generate-notes
+
+      - name: Summary
+        run: |
+          {
+            echo "### Released $GITHUB_REF_NAME"
+            echo ""
+            echo "- Package: \`$MODULE_NAME.zip\`"
+            echo "- SHA-256: \`$SHA256\`"
+            echo "- Next step: upload \`$MODULE_NAME-update.xml\` from the release assets to the site root."
+          } >> "$GITHUB_STEP_SUMMARY"
