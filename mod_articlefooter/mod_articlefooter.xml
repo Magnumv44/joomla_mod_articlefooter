@@ -6,7 +6,7 @@
     <copyright>(C) 2026 Magnum. All rights reserved.</copyright>
     <license>GNU General Public License version 3 or later; see LICENSE</license>
     <creationDate>2026-10</creationDate>
-    <version>1.2.2</version>
+    <version>1.2.3</version>
     <description>MOD_ARTICLEFOOTER_XML_DESCRIPTION</description>
     <namespace path="src">Magnum\Module\ArticleFooter</namespace>
     <files>
