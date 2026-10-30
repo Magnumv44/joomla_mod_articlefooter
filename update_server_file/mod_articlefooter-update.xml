@@ -9,9 +9,9 @@
         <version>1.2.3</version>
         <infourl title="Article Footer (custom HTML)">https://github.com/Magnumv44/mod_articlefooter</infourl>
         <downloads>
-            <downloadurl type="full" format="zip">https://github.com/Magnumv44/mod_articlefooter/releases/download/v1.2.2/mod_articlefooter.zip</downloadurl>
+            <downloadurl type="full" format="zip">https://www.magnumblog.space/extensions/mod_articlefooter.zip</downloadurl>
         </downloads>
-        <sha256>d146d426b4f97c097cda573b118bf78d3a632b5abb2b4ac1bae9bc23ed7fcbf9</sha256>
+        <sha256>9ed083c881c89de54ccd603fb6f1f256e5cf9dd2090ceb4599cfbb78cae973d1</sha256>
         <tags>
             <tag>stable</tag>
         </tags>
